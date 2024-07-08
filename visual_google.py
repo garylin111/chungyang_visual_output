@@ -9,20 +9,6 @@ import plotly.express as px
 
 # 设置服务账号信息
 secret_dict = dict(st.secrets["secret_key"])
-# secret_dict = {
-#     "type": "service_account",
-#     "project_id": "knife-cost-test",
-#     "private_key_id": "2d067d0ef0efce37ce478d326a8e05fee5b1df47",
-#     "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDjMnCx8oID/S5I\nA7prhSwkiDO815ZptI2twnyvF1n259JDKO7/IqXlT91XzRjH7saiV57v/50zd5X0\ne3yDLTeQZtuIfpJHJW6ohBZqvvHP0bb2VjUevAcxc7vMnjMj9uIStljYe5QqmF6m\nTrS1+VGYZWSojQrfFSyGU+lYHDx5+HD2LWfnmie0YY0qK98b1usUNAQVDfREFu1W\nQskzcIcQ2aOkK59EBF+/IQVYZsqJSpHb7f7HJDFkVELyC9CKxpxmItfF9TLS8eKk\nyvuJqnGEt10kZLCMSMlRZgmokjzEoP6gk+7ltpb7kxQwLiJzL6UDeXekRS3KO6q8\nMnDH4xjPAgMBAAECggEAaTH7JSGEmqU5LyXuxIbyU+3uirMFlWcArKIfChEVWjGn\nVOpYkrBvwLfUZCl2HmiL9zH7yOMBXgmyWHNuyOwATK+bWV1FjISj8onKOV206AUR\noohy6wqjh/2uyES9qBrRPVnJ1F6P0ZMgS/+oQ5OveJEF5Nb9YCJVLdMfeWkFhXEn\n6FKewfW33eVbOHySiAOH0eC+FBxv8XxJks7rlJODPPw55lJ/qY7sfoU5fUoNi5V4\nndeV9ZDRMY7GK9k8h937YrghR/1I166CqLuCU2YRlQ2pzCPWQVeTK/ssBSr17sfm\n85qxtGzW9W6X3Rf4U4bJbcmBgWzX8/hR+TERx7ySuQKBgQD/LeqilnQ83ixKPXP1\n2pnLXP0XTiSMafYQ8dMkVvKHjP/Y0SeUlFIPNtTGX9TWhmF0hdNfOjUsPtoYbeM2\nWU42w6ggv25rojkTdT9JahiWn0cx5X+I1Vuv26NFPEwIPdZnFX5QXtd3q5GLX4ZQ\nGPCoa6A67fHyUxO+2eBshLBtKQKBgQDj7XyHwFQAv93O4wSqdioSUcHZLz/crBwa\nLQedcQPi3nvf2gtRfSCxRyZR32uzD+pOgW1983jkA2X/Lm2Z00xbSSII/078KcEw\nJNNke8BmLltJJn3WxyWNR4aw9zKPX1keo/IJMBxWlOf08p9Dehr4yrq5aGYcITuJ\nYlbIkm4dNwKBgA/C9ks0n9lin7m2MgNtjTJSfA+EdB14Lgq95RzJghF9VBBAWwGC\nZ88ow9u875iQlFRuL7AiGEazWyVHJFGnEn2veCMNr/RWANCC3XXbZ8ll7S/XzRjW\nlOM33c3Y+5lGuIeFfFfag9SQdFz3eYRZBgRhIXSCXf9pwj53lrUdPQiBAoGBAOGt\ncZIQMpyTXRHN4f7OBRYicWeTyw26NBEO6O1Qy2JEnC6m/HHxDP+6zQxfxYmEhqC4\nsir1eYt6efFSjR60AnSYUuTJtfEjfq8mp1Bk37nMyIIDZLHWeS4L1ic+e4dOBzW5\napsCUezAf3MfD+aF7lLMmFmgLwpHNWXwQrFRm0m9AoGATWlNTXJtl2To5ijhXv4e\n9aoKGM2Fy7FSF1st1QDDRrTEgx9lmzTV8mgAfwLg9qyIQp9lQEWqe2s9j8HUaZn0\n5zgcUtzn+KvGn5zika+ZR7eMgkgQLVHtlwvri7JaH/q3M1JtyK9MbocZm4B2fnsm\nJbKgg2KVgW/nlplecPqpCdc=\n-----END PRIVATE KEY-----\n",
-#     "client_email": "linzhijia@knife-cost-test.iam.gserviceaccount.com",
-#     "client_id": "108055130880137315088",
-#     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-#     "token_uri": "https://oauth2.googleapis.com/token",
-#     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-#     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/linzhijia%40knife-cost-test.iam.gserviceaccount.com",
-#     "universe_domain": "googleapis.com"
-# }
-
 
 # Streamlit 页面布局和输入
 def main():
