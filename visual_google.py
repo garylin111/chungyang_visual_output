@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 # 设置服务账号信息
-secret_dict = st.secrets["secret_key"]
+secret_dict = dict(st.secrets["secret_key"])
 # secret_dict = {
 #     "type": "service_account",
 #     "project_id": "knife-cost-test",
