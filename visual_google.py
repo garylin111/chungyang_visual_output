@@ -44,7 +44,8 @@ def main():
 
 def load_data(start_time, end_time, url):
     SCOPES = ('https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive')
-    service_account_info = json.dumps(secret_dict)
+    # service_account_info = json.dumps(secret_dict)
+    service_account_info = secret_dict
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_info), scopes=SCOPES)
 
     gc = pygsheets.authorize(custom_credentials=credentials)
