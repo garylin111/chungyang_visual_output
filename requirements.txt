@@ -55,7 +55,6 @@ MarkupSafe==2.1.5
 matplotlib==3.9.0
 mdurl==0.1.2
 multidict==6.0.5
-nicegui==1.4.27
 numpy==1.26.4
 nums-from-string==0.1.2
 oauthlib==3.2.2
