@@ -7,9 +7,10 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.express as px
 
-# 设置服务账号信息
+# 設置服務賬號信息
 secret_dict = dict(st.secrets["secret_key"])
 
+# Streamlit 
 def main():
     st.title('生產計劃')
 
@@ -26,8 +27,8 @@ def main():
     if 'origin_data' in st.session_state:
         show_data()
 
-        # 顯示所有產品產出
-        if st.button('顯示所有產品產出'):
+        # 顯示所有產品的產出
+        if st.button('顯示所有產品的產出'):
             show_all_products_output(st.session_state['origin_data'])
 
         # 統計時間段内各個產品的總產出
@@ -50,7 +51,7 @@ def load_data(start_time, end_time, url):
     df = pd.DataFrame(data)
     df['製造日'] = pd.to_datetime(df['製造日'], errors='coerce')  # 将日期列转换为 datetime64[ns]
 
-    # 转换输入的日期为 datetime64[ns]
+    # 轉換輸入的日期 datetime64[ns]
     start_time = pd.to_datetime(start_time)
     end_time = pd.to_datetime(end_time)
 
@@ -66,14 +67,14 @@ def get_final_outputs(data):
     # 将工序列中的 NaN 值替换为一个较大的数，以确保它们被视为最后一道工序
     data['工序'] = data['工序'].fillna(data['工序'].max() + 1)
 
-    # 找到每个产品的最后一道工序的产出作为最终产出
+    # 找到每個產品的最後一道工序的產出作爲最終產出
     final_outputs = data.groupby('品名')['工序'].max().reset_index()
     final_outputs = final_outputs.merge(data, on=['品名', '工序'], how='left')
 
     return final_outputs
 
 
-# 显示数据和可视化
+# 顯示數據和可視化
 def show_data():
     origin_data = st.session_state['origin_data']
 
@@ -145,7 +146,7 @@ def show_data():
 
 
 def show_all_products_output(data):
-    st.header('所有產品產出')
+    st.header('所有产品的产出')
 
     grouped_data = data.groupby(['製造日', '品名'], as_index=False)['產出'].sum()
 
@@ -164,7 +165,7 @@ def show_all_products_output(data):
         )
 
     fig.update_layout(
-        title_text='所有產品產出隨時間變化',
+        title_text='所有产品的产出随时间变化',
         barmode='group',
         xaxis_title='製造日',
         yaxis_title='總產出',
@@ -174,11 +175,18 @@ def show_all_products_output(data):
 
 
 def show_total_outputs(data, start_time, end_time):
-    st.header(f'{start_time}-{end_time}各產品總產出')
+    st.header('{start_time}-{end_time}總產出')
 
     grouped_data = data.groupby('品名')['產出'].sum().reset_index()
 
-    st.write(grouped_data)
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write(grouped_data)
+
+    with col2:
+        fig = px.pie(grouped_data, values='產出', names='品名', title='中陽產品產出比例圖')
+        st.plotly_chart(fig)
 
 
 if __name__ == '__main__':
