@@ -26,12 +26,12 @@ def main():
     if 'origin_data' in st.session_state:
         show_data()
 
-        # 显示所有产品的产出
-        if st.button('显示所有产品的产出'):
+        # 顯示所有產品產出
+        if st.button('顯示所有產品產出'):
             show_all_products_output(st.session_state['origin_data'])
 
-        # 统计时间段内各个产品的总产出
-        if st.button('统计时间段内各个产品的总产出'):
+        # 統計時間段内各個產品的總產出
+        if st.button('統計時間段内各個產品的總產出'):
             show_total_outputs(st.session_state['origin_data'], start_time, end_time)
 
 
