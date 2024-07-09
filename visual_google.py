@@ -10,7 +10,6 @@ import plotly.express as px
 # 设置服务账号信息
 secret_dict = dict(st.secrets["secret_key"])
 
-# Streamlit 页面布局和输入
 def main():
     st.title('生產計劃')
 
@@ -27,12 +26,19 @@ def main():
     if 'origin_data' in st.session_state:
         show_data()
 
+        # 显示所有产品的产出
+        if st.button('显示所有产品的产出'):
+            show_all_products_output(st.session_state['origin_data'])
+
+        # 统计时间段内各个产品的总产出
+        if st.button('统计时间段内各个产品的总产出'):
+            show_total_outputs(st.session_state['origin_data'], start_time, end_time)
+
 
 def load_data(start_time, end_time, url):
     SCOPES = ('https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive')
     service_account_info = json.dumps(secret_dict)
-    # service_account_info = json.loads(secret_json)
-    
+
     credentials = service_account.Credentials.from_service_account_info(json.loads(service_account_info), scopes=SCOPES)
 
     gc = pygsheets.authorize(custom_credentials=credentials)
@@ -51,7 +57,20 @@ def load_data(start_time, end_time, url):
     mask = (df['製造日'] >= start_time) & (df['製造日'] <= end_time)
     filtered_data = df.loc[mask]
 
-    return filtered_data
+    final_outputs = get_final_outputs(filtered_data)
+
+    return final_outputs
+
+
+def get_final_outputs(data):
+    # 将工序列中的 NaN 值替换为一个较大的数，以确保它们被视为最后一道工序
+    data['工序'] = data['工序'].fillna(data['工序'].max() + 1)
+
+    # 找到每个产品的最后一道工序的产出作为最终产出
+    final_outputs = data.groupby('品名')['工序'].max().reset_index()
+    final_outputs = final_outputs.merge(data, on=['品名', '工序'], how='left')
+
+    return final_outputs
 
 
 # 显示数据和可视化
@@ -123,6 +142,43 @@ def show_data():
                               title=f'人員 {selected_person_id} 的能力雷達圖')
 
     st.plotly_chart(radar_fig)
+
+
+def show_all_products_output(data):
+    st.header('所有產品產出')
+
+    grouped_data = data.groupby(['製造日', '品名'], as_index=False)['產出'].sum()
+
+    fig = go.Figure()
+
+    for product in grouped_data['品名'].unique():
+        product_data = grouped_data[grouped_data['品名'] == product]
+        fig.add_trace(
+            go.Bar(
+                x=product_data['製造日'],
+                y=product_data['產出'],
+                name=f'{product} 產出',
+                hovertext=product_data['品名'],
+                legendgroup=product,
+            )
+        )
+
+    fig.update_layout(
+        title_text='所有產品產出隨時間變化',
+        barmode='group',
+        xaxis_title='製造日',
+        yaxis_title='總產出',
+    )
+
+    st.plotly_chart(fig)
+
+
+def show_total_outputs(data, start_time, end_time):
+    st.header(f'{start_time}-{end_time}各產品總產出')
+
+    grouped_data = data.groupby('品名')['產出'].sum().reset_index()
+
+    st.write(grouped_data)
 
 
 if __name__ == '__main__':
