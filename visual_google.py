@@ -175,7 +175,7 @@ def show_all_products_output(data):
 
 
 def show_total_outputs(data, start_time, end_time):
-    st.header('{start_time}-{end_time}總產出')
+    st.header(f'{start_time}-{end_time}總產出')
 
     grouped_data = data.groupby('品名')['產出'].sum().reset_index()
 
