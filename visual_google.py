@@ -125,7 +125,7 @@ def show_data():
             name='總產出',
             text=grouped_data['產出'],
             textposition='inside',
-            textfont=dict(color='white'),  # 更改字體顏色
+            textfont=dict(color='black'),  # 更改字體顏色
             hovertext=grouped_data['製造日格式化'],
         ),
         secondary_y=False,
@@ -139,7 +139,8 @@ def show_data():
             mode='lines+markers+text',
             line=dict(color='firebrick', width=2),
             marker=dict(size=6),
-            text=grouped_data['標工'].round(2),
+            text=grouped_data['標工'].round(1),
+            textfont=dict(color='black'),  # 更改字體顏色
             textposition='top center',
         ),
         secondary_y=True,
