@@ -10,7 +10,7 @@ import plotly.express as px
 # 設置服務賬號信息
 secret_dict = dict(st.secrets["secret_key"])
 
-# Streamlit 
+# Streamlit 页面布局和输入
 def main():
     st.title('生產計劃')
 
@@ -27,12 +27,13 @@ def main():
     if 'origin_data' in st.session_state:
         show_data()
 
-        # 顯示所有產品的產出
-        if st.button('顯示所有產品的產出'):
+        product_name(start_time, end_time)
+        # 显示所有产品的产出
+        if st.button('显示所有产品的产出'):
             show_all_products_output(st.session_state['origin_data'])
 
-        # 統計時間段内各個產品的總產出
-        if st.button('統計時間段内各個產品的總產出'):
+        # 统计时间段内各个产品的总产出
+        if st.button('统计时间段内各个产品的总产出'):
             show_total_outputs(st.session_state['origin_data'], start_time, end_time)
 
 
@@ -51,7 +52,7 @@ def load_data(start_time, end_time, url):
     df = pd.DataFrame(data)
     df['製造日'] = pd.to_datetime(df['製造日'], errors='coerce')  # 将日期列转换为 datetime64[ns]
 
-    # 轉換輸入的日期 datetime64[ns]
+    # 转换输入的日期为 datetime64[ns]
     start_time = pd.to_datetime(start_time)
     end_time = pd.to_datetime(end_time)
 
@@ -67,86 +68,132 @@ def get_final_outputs(data):
     # 将工序列中的 NaN 值替换为一个较大的数，以确保它们被视为最后一道工序
     data['工序'] = data['工序'].fillna(data['工序'].max() + 1)
 
-    # 找到每個產品的最後一道工序的產出作爲最終產出
+    # 找到每个产品的最后一道工序的产出作为最终产出
     final_outputs = data.groupby('品名')['工序'].max().reset_index()
     final_outputs = final_outputs.merge(data, on=['品名', '工序'], how='left')
 
     return final_outputs
 
 
-# 顯示數據和可視化
+# 显示数据和可视化
+def get_chinese_weekday(date):
+    weekdays = ['（一）', '（二）', '（三）', '（四）', '（五）', '（六）', '（日）']
+    return weekdays[date.weekday()]
+
+
 def show_data():
     origin_data = st.session_state['origin_data']
 
     st.header('目視化')
 
-    machine_ids = origin_data['姓名'].unique()
-    selected_person_id = st.selectbox('選擇操作人員', machine_ids)
+    # 添加篩選選項
+    product_numbers = origin_data['料號'].unique()
+    selected_product_number = st.selectbox('選擇料號', product_numbers)
 
-    filtered_data = origin_data[origin_data['姓名'] == selected_person_id]
+    filtered_data_by_number = origin_data[origin_data['料號'] == selected_product_number]
+    product_names = filtered_data_by_number['品名'].unique()
+    selected_product_name = st.selectbox('選擇品名', product_names)
+
+    filtered_data_by_name = filtered_data_by_number[filtered_data_by_number['品名'] == selected_product_name]
+    process_names = filtered_data_by_name['工序'].unique()
+    selected_process = st.selectbox('選擇工序', process_names)
+
+    filtered_data_by_process = filtered_data_by_name[filtered_data_by_name['工序'] == selected_process]
+    shifts = filtered_data_by_process['班別'].unique()
+    selected_shift = st.selectbox('選擇班別', shifts)
+
+    # 篩選數據
+    filtered_data = filtered_data_by_process[filtered_data_by_process['班別'] == selected_shift]
+
     filtered_data['產出'] = pd.to_numeric(filtered_data['產出'], errors='coerce').fillna(0).astype(int)
     filtered_data['工時'] = pd.to_numeric(filtered_data['工時'], errors='coerce').fillna(0).astype(float)
 
-    grouped_data = filtered_data.groupby(['製造日', '班別', '品名'], as_index=False)[['產出', '工時']].sum()
+    grouped_data = filtered_data.groupby(['製造日'], as_index=False)[['產出', '工時']].sum()
     grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
     grouped_data['標工'].fillna(0, inplace=True)
 
+    # 将日期格式化为 "月日 + 星期"
+    grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(
+        get_chinese_weekday)
+
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    for product in grouped_data['品名'].unique():
-        product_data = grouped_data[grouped_data['品名'] == product]
-        fig.add_trace(
-            go.Bar(
-                x=product_data['製造日'],
-                y=product_data['產出'],
-                name=f'{product} 產出',
-                hovertext=product_data['班別'],
-                legendgroup=product,
-            ),
-            secondary_y=False,
-        )
+    fig.add_trace(
+        go.Bar(
+            x=grouped_data['製造日格式化'],
+            y=grouped_data['產出'],
+            name='總產出',
+            text=grouped_data['產出'],
+            textposition='inside',
+            textfont=dict(color='white'),  # 更改字體顏色
+            hovertext=grouped_data['製造日格式化'],
+        ),
+        secondary_y=False,
+    )
 
     fig.add_trace(
         go.Scatter(
-            x=grouped_data['製造日'],
+            x=grouped_data['製造日格式化'],
             y=grouped_data['標工'],
             name='標工',
-            mode='lines+markers',
+            mode='lines+markers+text',
             line=dict(color='firebrick', width=2),
-            marker=dict(size=6)
+            marker=dict(size=6),
+            text=grouped_data['標工'].round(2),
+            textposition='top center',
         ),
         secondary_y=True,
     )
 
     fig.update_layout(
-        title_text=f'人員 {selected_person_id} 的產出隨時間變化和標工',
+        title_text=f'{selected_product_number} - {selected_product_name} - {selected_process} - {selected_shift} 下的所有人員總產出和標工',
         barmode='group',
         xaxis_title='製造日',
-        yaxis_title='產出',
+        yaxis_title='總產出',
         yaxis2_title='標工',
+        xaxis=dict(
+            tickangle=-45  # 標籤角度
+        )
     )
 
     st.plotly_chart(fig)
 
-    st.header('能力雷達圖')
+def product_name(start_time,end_time):
+    # 获取会话中的原始数据
+    origin_data = st.session_state['origin_data']
 
-    product_types = filtered_data['品名'].nunique()
-    shift_types = filtered_data['班別'].nunique()
-    machine_count = filtered_data['機台編號'].nunique()
+    # 显示标题
+    st.header('產品工序人員排名')
 
-    radar_data = pd.DataFrame({
-        '能力': ['產品種類', '班別種類', '機台數量'],
-        '數量': [product_types, shift_types, machine_count]
+    # 选择產品、工序
+    product_numbers = origin_data['料號'].unique()
+    selected_product_number = st.selectbox('選擇料號', product_numbers, key='select_product_number')
+
+    filtered_data = origin_data[origin_data['料號'] == selected_product_number]
+
+    product_names = filtered_data['品名'].unique()
+    selected_product_name = st.selectbox('選擇品名', product_names, key='select_product_name')
+
+    filtered_data = filtered_data[filtered_data['品名'] == selected_product_name]
+
+    process_names = filtered_data['工序'].unique()
+    selected_process = st.selectbox('選擇工序', process_names, key='select_process')
+
+    # 统计每个人员的工时和標工，包括班別
+    grouped_data = filtered_data.groupby(['姓名', '班別'], as_index=False).agg({
+        '工時': 'sum',
+        '產出': 'sum'
     })
 
-    radar_fig = px.line_polar(radar_data, r='數量', theta='能力', line_close=True,
-                              title=f'人員 {selected_person_id} 的能力雷達圖')
+    grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
 
-    st.plotly_chart(radar_fig)
-
+    # 显示结果
+    st.header(f'{start_time}~{end_time}')
+    st.header(f'{selected_product_name} - 工序 {selected_process}')
+    st.dataframe(grouped_data)
 
 def show_all_products_output(data):
-    st.header('所有产品的产出')
+    st.header('所有產品的產出')
 
     grouped_data = data.groupby(['製造日', '品名'], as_index=False)['產出'].sum()
 
@@ -159,23 +206,30 @@ def show_all_products_output(data):
                 x=product_data['製造日'],
                 y=product_data['產出'],
                 name=f'{product} 產出',
+                text=product_data['產出'],
+                textposition='outside',
                 hovertext=product_data['品名'],
                 legendgroup=product,
             )
         )
 
     fig.update_layout(
-        title_text='所有产品的产出随时间变化',
+        title_text='所有產品的產出隨時間變化',
         barmode='group',
         xaxis_title='製造日',
         yaxis_title='總產出',
+        xaxis=dict(
+            tickformat='%Y/%m/%d',  # 使用阿拉伯數字顯示日期
+            dtick='D1',  # 每天顯示一次標籤
+            tickangle=-45  # 標籤角度
+        )
     )
 
     st.plotly_chart(fig)
 
 
 def show_total_outputs(data, start_time, end_time):
-    st.header(f'{start_time}-{end_time}總產出')
+    st.header('时间段内各个产品的总产出')
 
     grouped_data = data.groupby('品名')['產出'].sum().reset_index()
 
@@ -185,7 +239,7 @@ def show_total_outputs(data, start_time, end_time):
         st.write(grouped_data)
 
     with col2:
-        fig = px.pie(grouped_data, values='產出', names='品名', title='中陽產品產出比例圖')
+        fig = px.pie(grouped_data, values='產出', names='品名', title='各产品的产出占比')
         st.plotly_chart(fig)
 
 
