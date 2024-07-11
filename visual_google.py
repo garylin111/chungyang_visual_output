@@ -15,7 +15,8 @@ secret_num_dict = dict(st.secrets["data"])
 
 # Streamlit 页面布局和输入
 def main():
-    st.write(secret_num_dict)
+    data = pd.Dataframe(secret_num_dict)
+    st.write(data)
     st.title('生產計劃')
 
     start_time = st.date_input('訂單開始時間', key='start')
