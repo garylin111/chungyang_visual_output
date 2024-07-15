@@ -176,9 +176,7 @@ def load_data(start_time, end_time, url):
     mask = (df['製造日'] >= start_time) & (df['製造日'] <= end_time)
     filtered_data = df.loc[mask]
 
-    final_outputs = get_final_outputs(filtered_data)
-
-    return final_outputs
+    return filtered_data
 
 
 def get_final_outputs(data):
@@ -226,7 +224,6 @@ def show_data():
     filtered_data['工時'] = pd.to_numeric(filtered_data['工時'], errors='coerce').fillna(0).astype(float)
 
     grouped_data = filtered_data.groupby(['製造日'], as_index=False)[['產出', '工時']].sum()
-    grouped_data = grouped_data[grouped_data['工時'] != 0]
     grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
     grouped_data['標工'].fillna(0, inplace=True)
 
@@ -282,13 +279,13 @@ def show_data():
 
 
 def product_name(start_time, end_time, standard):
-    
+
     origin_data = st.session_state['origin_data']
 
-    # 显示标题
+    # 顯示標題
     st.header('產品工序人員排名')
 
-    # 选择產品、工序
+    # 選擇產品、工序
     product_numbers = origin_data['料號'].unique()
     selected_product_number = st.selectbox('選擇料號', product_numbers, key='select_product_number')
 
@@ -297,18 +294,18 @@ def product_name(start_time, end_time, standard):
     product_names = filtered_data['品名'].unique()
     selected_product_name = st.selectbox('選擇品名', product_names, key='select_product_name')
 
-    filtered_data = filtered_data[filtered_data['品名'] == selected_product_name]
-
     process_names = filtered_data['工序'].unique()
     selected_process = st.selectbox('選擇工序', process_names, key='select_process')
 
-    # 统计每个人员的工时和標工，包括班別和製造日
-    grouped_data = filtered_data.groupby(['姓名', '班別', '製造日'], as_index=False).agg({
+    filtered_data = filtered_data[filtered_data['工序'] == selected_process]
+
+    # 統計每個人員的工時和標工，包括班別和製造日
+    grouped_data = filtered_data.groupby(['製造日', '班別', '姓名'], as_index=False).agg({
         '工時': 'sum',
         '產出': 'sum'
     })
 
-    # 获取标准工时值
+    # 獲取標準工時值
     filtered_standard = standard[
         (standard['品名'] == selected_product_name) &
         (standard['工序'] == selected_process)
@@ -323,28 +320,30 @@ def product_name(start_time, end_time, standard):
     grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
     grouped_data['理論產出'] = grouped_data['工時'] * standard_num
 
-    # 将理論產出保留到小数点后两位
-
+    # 將理論產出保留到小數點後兩位
     grouped_data['標工'] = pd.to_numeric(grouped_data['標工'], errors='coerce').fillna(0).round(0)
     grouped_data['理論產出'] = pd.to_numeric(grouped_data['理論產出'], errors='coerce').fillna(0).round(0)
 
-    # 将日期格式化为 "月日 + 星期"
+    # 將日期格式化為 "月日 + 星期"
     grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(get_chinese_weekday)
 
     # 重新排序列
     grouped_data = grouped_data[['製造日', '製造日格式化', '姓名', '班別', '標工', '工時', '產出', '理論產出']]
 
+    # 按製造日排序
+    grouped_data = grouped_data.sort_values(by='製造日')
+
     # 顯示結果
     st.header(f'{start_time}~{end_time}')
 
     st.header(f'{selected_product_name} - 工序 {selected_process}')
-    st.write('標準數：',standard_num)
+    st.write('標準數：', standard_num)
     st.dataframe(grouped_data)
 
     # 使用 Plotly 可視化
     fig = go.Figure()
 
-    # 定义班別颜色
+    # 定義班別顏色
     shift_colors = {
         '早班': 'blue',
         '晚班': 'red'
@@ -381,7 +380,6 @@ def product_name(start_time, end_time, standard):
     )
 
     st.plotly_chart(fig)
-
 
 def show_all_products_output(data):
     st.header('所有產品的產出')
@@ -423,8 +421,8 @@ def show_all_products_output(data):
 
 def show_total_outputs(data, start_time, end_time):
     st.header(f'{start_time}-{end_time} 各個產品的總產出')
-
-    grouped_data = data.groupby('品名')['產出'].sum().reset_index()
+    final_outputs = get_final_outputs(data) # 使用最後的工序作爲產品產出
+    grouped_data = final_outputs.groupby('品名')['產出'].sum().reset_index()
 
     col1, col2 = st.columns(2)
 
