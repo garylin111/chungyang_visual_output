@@ -281,7 +281,7 @@ def show_data():
 
 
 def product_name(start_time, end_time, standard):
-    # 获取会话中的原始数据
+    
     origin_data = st.session_state['origin_data']
 
     # 显示标题
@@ -323,7 +323,9 @@ def product_name(start_time, end_time, standard):
     grouped_data['理論產出'] = grouped_data['工時'] * standard_num
 
     # 将理論產出保留到小数点后两位
-    grouped_data['理論產出'] = grouped_data['理論產出'].round(2)
+
+    grouped_data['標工'] = pd.to_numeric(grouped_data['標工'], errors='coerce').fillna(0).round(0)
+    grouped_data['理論產出'] = pd.to_numeric(grouped_data['理論產出'], errors='coerce').fillna(0).round(0)
 
     # 将日期格式化为 "月日 + 星期"
     grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(get_chinese_weekday)
@@ -333,7 +335,9 @@ def product_name(start_time, end_time, standard):
 
     # 顯示結果
     st.header(f'{start_time}~{end_time}')
+
     st.header(f'{selected_product_name} - 工序 {selected_process}')
+    st.write('標準數：',standard_num)
     st.dataframe(grouped_data)
 
     # 使用 Plotly 可視化
@@ -417,7 +421,7 @@ def show_all_products_output(data):
 
 
 def show_total_outputs(data, start_time, end_time):
-    st.header(f'{start_time}-{end_time} 各个产品的总产出')
+    st.header(f'{start_time}-{end_time} 各個產品的總產出')
 
     grouped_data = data.groupby('品名')['產出'].sum().reset_index()
 
@@ -427,7 +431,7 @@ def show_total_outputs(data, start_time, end_time):
         st.write(grouped_data)
 
     with col2:
-        fig = px.pie(grouped_data, values='產出', names='品名', title='各产品的产出占比')
+        fig = px.pie(grouped_data, values='產出', names='品名', title='各產品的產出占比')
         st.plotly_chart(fig)
 
 
