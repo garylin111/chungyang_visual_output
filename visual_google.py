@@ -226,6 +226,7 @@ def show_data():
     filtered_data['工時'] = pd.to_numeric(filtered_data['工時'], errors='coerce').fillna(0).astype(float)
 
     grouped_data = filtered_data.groupby(['製造日'], as_index=False)[['產出', '工時']].sum()
+    grouped_data = grouped_data[grouped_data['工時'] != 0]
     grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
     grouped_data['標工'].fillna(0, inplace=True)
 
