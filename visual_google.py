@@ -13,7 +13,8 @@ secret_dict = dict(st.secrets["secret_key"])
 # secret_num_dict = dict(st.secrets["data"])
 
 
-# Streamlit 页面布局和输入
+
+# Streamlit 頁面佈局和輸入
 def main():
     # 當標工更新，需要使用test2程式做更新轉換
     data_st = [
@@ -196,6 +197,7 @@ def get_chinese_weekday(date):
     return weekdays[date.weekday()]
 
 
+
 def show_data():
     origin_data = st.session_state['origin_data']
 
@@ -228,54 +230,63 @@ def show_data():
     grouped_data['標工'].fillna(0, inplace=True)
 
     # 将日期格式化为 "月日 + 星期"
-    grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(
-        get_chinese_weekday)
+    grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(get_chinese_weekday)
 
     # show一下dataframe内容
-    st.write('展示數據', grouped_data)
+    st.write('產出隨時間變化', grouped_data)
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # 針對人員做聚合
+    grouped_man_data = filtered_data.groupby(['姓名'], as_index=False)[['產出','工時']].sum()
+    grouped_man_data['標工'] = grouped_man_data['產出'] / grouped_man_data['工時']
+    grouped_man_data['標工'].fillna(0, inplace=True)
 
-    fig.add_trace(
-        go.Bar(
-            x=grouped_data['製造日格式化'],
-            y=grouped_data['產出'],
-            name='總產出',
-            text=grouped_data['產出'],
-            textposition='inside',
-            textfont=dict(color='black'),  # 更改字體顏色
-            hovertext=grouped_data['製造日格式化'],
-        ),
-        secondary_y=False,
-    )
+    st.write('人員產出比較', grouped_man_data)
 
-    fig.add_trace(
-        go.Scatter(
-            x=grouped_data['製造日格式化'],
-            y=grouped_data['標工'],
-            name='標工',
-            mode='lines+markers+text',
-            line=dict(color='firebrick', width=2),
-            marker=dict(size=6),
-            text=grouped_data['標工'].round(2),
-            textfont=dict(color='black'),  # 更改字體顏色
-            textposition='top center',
-        ),
-        secondary_y=True,
-    )
+    # 合併創建子圖的代碼
+    for data, x_col, y1_col, y2_col, y1_name, y2_name, title, xaxis_title, y1_title, y2_title in [
+        (grouped_man_data, '姓名', '產出', '標工', '總產出', '標工', f'{selected_product_number} - {selected_product_name} - {selected_process} - {selected_shift} 的所有人員總產出和標工', '姓名', '總產出', '標工'),
+        (grouped_data, '製造日格式化', '產出', '標工', '總產出', '標工', f'{selected_product_number} - {selected_product_name} - {selected_process} - {selected_shift} 的總產出和標工', '製造日', '總產出', '標工')
+    ]:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.update_layout(
-        title_text=f'{selected_product_number} - {selected_product_name} - {selected_process} - {selected_shift} 下的所有人員總產出和標工',
-        barmode='group',
-        xaxis_title='製造日',
-        yaxis_title='總產出',
-        yaxis2_title='標工',
-        xaxis=dict(
-            tickangle=-45  # 標籤角度
+        fig.add_trace(
+            go.Bar(
+                x=data[x_col],
+                y=data[y1_col],
+                name=y1_name,
+                text=data[y1_col],
+                textposition='inside',
+                textfont=dict(color='black'),
+                hovertext=data[x_col],
+            ),
+            secondary_y=False,
         )
-    )
 
-    st.plotly_chart(fig)
+        fig.add_trace(
+            go.Scatter(
+                x=data[x_col],
+                y=data[y2_col],
+                name=y2_name,
+                mode='lines+markers+text',
+                line=dict(color='firebrick', width=2),
+                marker=dict(size=6),
+                text=data[y2_col].round(2),
+                textfont=dict(color='black'),
+                textposition='top center',
+            ),
+            secondary_y=True,
+        )
+
+        fig.update_layout(
+            title_text=title,
+            barmode='group',
+            xaxis_title=xaxis_title,
+            yaxis_title=y1_title,
+            yaxis2_title=y2_title,
+            xaxis=dict(tickangle=-45)
+        )
+
+        st.plotly_chart(fig)
 
 
 def product_name(start_time, end_time, standard):
