@@ -435,14 +435,14 @@ def show_total_outputs(data, start_time, end_time):
     final_outputs = get_final_outputs(data) # 使用最後的工序作爲產品產出
     grouped_data = final_outputs.groupby('品名')['產出'].sum().reset_index()
 
-    col1, col2 = st.columns(2)
+    # col1, col2 = st.columns(2)
 
-    with col1:
-        st.write(grouped_data)
+    # with col1:
+    st.write(grouped_data)
 
-    with col2:
-        fig = px.pie(grouped_data, values='產出', names='品名', title='各產品的產出占比')
-        st.plotly_chart(fig)
+    # with col2:
+    fig = px.pie(grouped_data, values='產出', names='品名', title='各產品的產出占比')
+    st.plotly_chart(fig)
 
 
 if __name__ == '__main__':
