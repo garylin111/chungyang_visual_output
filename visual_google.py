@@ -140,8 +140,10 @@ def main():
 
     if 'origin_data' in st.session_state:
         with st.expander('目視化人員工時標工'):
-            product_name(start_time, end_time, data_st)
-            show_data()
+            show_combined_data(start_time, end_time, data_st)
+            # show_data()
+        with st.expander('產品產出漏斗圖'):
+            show_funnel_chart(st.session_state['origin_data'], start_time, end_time)
         # 显示所有产品的产出
         with st.expander('顯示產品產出柱狀圖'):
             show_all_products_output(st.session_state['origin_data'])
@@ -198,26 +200,26 @@ def get_chinese_weekday(date):
 
 
 
-def show_data():
+def show_combined_data(start_time, end_time, standard):
     origin_data = st.session_state['origin_data']
 
-    st.header('早晚班產出目視化')
+    st.header('產出目視化與人員排名')
 
     # 添加篩選選項
     product_numbers = origin_data['料號'].unique()
-    selected_product_number = st.selectbox('選擇料號', product_numbers)
+    selected_product_number = st.selectbox('選擇料號', product_numbers, key='select_product_number')
 
     filtered_data_by_number = origin_data[origin_data['料號'] == selected_product_number]
     product_names = filtered_data_by_number['品名'].unique()
-    selected_product_name = st.selectbox('選擇品名', product_names)
+    selected_product_name = st.selectbox('選擇品名', product_names, key='select_product_name')
 
     filtered_data_by_name = filtered_data_by_number[filtered_data_by_number['品名'] == selected_product_name]
     process_names = filtered_data_by_name['工序'].unique()
-    selected_process = st.selectbox('選擇工序', process_names)
+    selected_process = st.selectbox('選擇工序', process_names, key='select_process')
 
     filtered_data_by_process = filtered_data_by_name[filtered_data_by_name['工序'] == selected_process]
     shifts = filtered_data_by_process['班別'].unique()
-    selected_shift = st.selectbox('選擇班別', shifts)
+    selected_shift = st.selectbox('選擇班別', shifts, key='select_shift')
 
     # 篩選數據
     filtered_data = filtered_data_by_process[filtered_data_by_process['班別'] == selected_shift]
@@ -232,15 +234,54 @@ def show_data():
     # 将日期格式化为 "月日 + 星期"
     grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(get_chinese_weekday)
 
-    # show一下dataframe内容
-    st.write('產出隨時間變化', grouped_data)
-
     # 針對人員做聚合
-    grouped_man_data = filtered_data.groupby(['姓名'], as_index=False)[['產出','工時']].sum()
+    grouped_man_data = filtered_data.groupby(['姓名'], as_index=False)[['產出', '工時']].sum()
     grouped_man_data['標工'] = grouped_man_data['產出'] / grouped_man_data['工時']
     grouped_man_data['標工'].fillna(0, inplace=True)
 
+    # 統計每個人員的工時和標工，包括班別和製造日
+    grouped_data_with_personnel = filtered_data.groupby(['製造日', '班別', '姓名'], as_index=False).agg({
+        '工時': 'sum',
+        '產出': 'sum'
+    })
+
+    # 獲取標準工時值
+    filtered_standard = standard[
+        (standard['品名'] == selected_product_name) &
+        (standard['工序'] == selected_process)
+        ]
+
+    if filtered_standard.empty:
+        st.error(f"找不到標準工時值，請檢查品名和工序標準數是否更新：{selected_product_name}, {selected_process}")
+        return
+
+    standard_num = filtered_standard['標準數'].values[0]
+
+    grouped_data_with_personnel['標工'] = grouped_data_with_personnel['產出'] / grouped_data_with_personnel['工時']
+    grouped_data_with_personnel['理論產出'] = grouped_data_with_personnel['工時'] * standard_num
+
+    grouped_data_with_personnel['標工'] = pd.to_numeric(grouped_data_with_personnel['標工'], errors='coerce').fillna(
+        0).round(0)
+    grouped_data_with_personnel['理論產出'] = pd.to_numeric(grouped_data_with_personnel['理論產出'],
+                                                            errors='coerce').fillna(0).round(0)
+
+    grouped_data_with_personnel['製造日格式化'] = grouped_data_with_personnel['製造日'].dt.strftime('%m月%d日') + ' ' + \
+                                                  grouped_data_with_personnel['製造日'].apply(get_chinese_weekday)
+
+    grouped_data_with_personnel = grouped_data_with_personnel[
+        ['製造日', '製造日格式化', '姓名', '班別', '標工', '工時', '產出', '理論產出']]
+
+    grouped_data_with_personnel = grouped_data_with_personnel.sort_values(by='製造日')
+
+    st.header(f'{start_time}~{end_time}')
+    st.header(f'{selected_product_name} - 工序 {selected_process}')
+    st.write('標準數：', standard_num)
+
     st.write('人員產出比較', grouped_man_data)
+    # 顯示 dataframe 内容
+    st.write('產出隨時間變化', grouped_data)
+
+    st.dataframe(grouped_data_with_personnel)
 
     # 合併創建子圖的代碼
     for data, x_col, y1_col, y2_col, y1_name, y2_name, title, xaxis_title, y1_title, y2_title in [
@@ -288,80 +329,16 @@ def show_data():
 
         st.plotly_chart(fig)
 
-
-def product_name(start_time, end_time, standard):
-
-    origin_data = st.session_state['origin_data']
-
-    # 顯示標題
-    st.header('產品工序人員排名')
-
-    # 選擇產品、工序
-    product_numbers = origin_data['料號'].unique()
-    selected_product_number = st.selectbox('選擇料號', product_numbers, key='select_product_number')
-
-    filtered_data = origin_data[origin_data['料號'] == selected_product_number]
-
-    product_names = filtered_data['品名'].unique()
-    selected_product_name = st.selectbox('選擇品名', product_names, key='select_product_name')
-
-    process_names = filtered_data['工序'].unique()
-    selected_process = st.selectbox('選擇工序', process_names, key='select_process')
-
-    filtered_data = filtered_data[filtered_data['工序'] == selected_process]
-
-    # 統計每個人員的工時和標工，包括班別和製造日
-    grouped_data = filtered_data.groupby(['製造日', '班別', '姓名'], as_index=False).agg({
-        '工時': 'sum',
-        '產出': 'sum'
-    })
-
-    # 獲取標準工時值
-    filtered_standard = standard[
-        (standard['品名'] == selected_product_name) &
-        (standard['工序'] == selected_process)
-    ]
-
-    if filtered_standard.empty:
-        st.error(f"找不到標準工時值，請檢查品名和工序：{selected_product_name}, {selected_process}")
-        return
-
-    standard_num = filtered_standard['標準數'].values[0]
-
-    grouped_data['標工'] = grouped_data['產出'] / grouped_data['工時']
-    grouped_data['理論產出'] = grouped_data['工時'] * standard_num
-
-    # 將理論產出保留到小數點後兩位
-    grouped_data['標工'] = pd.to_numeric(grouped_data['標工'], errors='coerce').fillna(0).round(0)
-    grouped_data['理論產出'] = pd.to_numeric(grouped_data['理論產出'], errors='coerce').fillna(0).round(0)
-
-    # 將日期格式化為 "月日 + 星期"
-    grouped_data['製造日格式化'] = grouped_data['製造日'].dt.strftime('%m月%d日') + ' ' + grouped_data['製造日'].apply(get_chinese_weekday)
-
-    # 重新排序列
-    grouped_data = grouped_data[['製造日', '製造日格式化', '姓名', '班別', '標工', '工時', '產出', '理論產出']]
-
-    # 按製造日排序
-    grouped_data = grouped_data.sort_values(by='製造日')
-
-    # 顯示結果
-    st.header(f'{start_time}~{end_time}')
-
-    st.header(f'{selected_product_name} - 工序 {selected_process}')
-    st.write('標準數：', standard_num)
-    st.dataframe(grouped_data)
-
     # 使用 Plotly 可視化
     fig = go.Figure()
 
-    # 定義班別顏色
     shift_colors = {
         '早班': 'blue',
         '晚班': 'red'
     }
 
     for shift, color in shift_colors.items():
-        shift_data = grouped_data[grouped_data['班別'] == shift]
+        shift_data = grouped_data_with_personnel[grouped_data_with_personnel['班別'] == shift]
         fig.add_trace(go.Bar(
             x=shift_data['製造日格式化'],
             y=shift_data['產出'],
@@ -391,6 +368,47 @@ def product_name(start_time, end_time, standard):
     )
 
     st.plotly_chart(fig)
+
+def show_funnel_chart(origin_data, start_time, end_time):
+    st.header('特定時間段內不同工序的產出漏斗圖')
+
+    # 選擇產品
+    product_numbers = origin_data['品名'].unique()
+    selected_product_number = st.selectbox('選擇品名', product_numbers, key='funnel_select_product_number')
+
+    filtered_data_by_number = origin_data[(origin_data['品名'] == selected_product_number) &
+                                          (origin_data['製造日'] >= pd.to_datetime(start_time)) &
+                                          (origin_data['製造日'] <= pd.to_datetime(end_time))]
+
+    # 聚合不同工序的產出數據
+    grouped_process_data = filtered_data_by_number.groupby(['工序'], as_index=False)['產出'].sum()
+    grouped_process_data.sort_values(by='工序', ascending=True, inplace=True)
+
+    # 取工序最小的產出
+    min_process_output = grouped_process_data['產出'].iloc[0]
+    grouped_process_data['百分比'] = grouped_process_data['產出'] / min_process_output * 100
+
+    # 繪製漏斗圖
+    fig = go.Figure(go.Funnel(
+        y=grouped_process_data['工序'],
+        x=grouped_process_data['產出'],
+        textinfo="text",
+        customdata=grouped_process_data[['工序', '產出', '百分比']],  # 使用工序、產出和百分比作为自定义数据
+        hoverinfo="text+percent initial",
+        texttemplate="<b>工序:</b> %{customdata[0]}<br>" +
+                     "<b>產出:</b> %{customdata[1]:,.0f}<br>" +
+                     "<b>百分比:</b> %{customdata[2]:.2f}%",
+    ))
+
+    fig.update_layout(
+        title=f'{selected_product_number} 在 {start_time} 到 {end_time} 的不同工序產出漏斗圖',
+        xaxis_title='產出',
+        yaxis_title='工序'
+    )
+
+    # 顯示漏斗圖
+    st.plotly_chart(fig)
+
 
 def show_all_products_output(data):
     st.header('所有產品的產出')
