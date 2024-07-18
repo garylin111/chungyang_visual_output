@@ -155,6 +155,9 @@ def main():
             show_total_outputs(st.session_state['origin_data'], start_time, end_time)
         # if st.button('统计时间段内各个产品的总产出'):
         #     show_total_outputs(st.session_state['origin_data'], start_time, end_time)
+    if 'data_all' in st.session_state:
+        with st.expander('預測人員機台產出'):
+            predict()
 
 
 def load_data(start_time, end_time, url):
@@ -170,6 +173,8 @@ def load_data(start_time, end_time, url):
     data = worksheet.get_all_records()
 
     df = pd.DataFrame(data)
+    data_all = df
+    st.session_state['data_all'] = data_all
     df['製造日'] = pd.to_datetime(df['製造日'], errors='coerce')  # 将日期列转换为 datetime64[ns]
 
     # 转换输入的日期为 datetime64[ns]
@@ -461,6 +466,162 @@ def show_total_outputs(data, start_time, end_time):
     # with col2:
     fig = px.pie(grouped_data, values='產出', names='品名', title='各產品的產出占比')
     st.plotly_chart(fig)
+
+
+@st.cache_data
+def load_excel_data(file_path):
+    df = pd.read_excel(file_path, parse_dates=['製造日'])
+    st.write("數據加載成功！")
+    return df
+
+
+def preprocess_data(df):
+    # 檢查和顯示列名
+    st.write("數據列名：", df.columns)
+
+    # 檢查並處理缺失值
+    st.write("處理前缺失值情況：", df.isnull().sum())
+    df.dropna(inplace=True)
+    st.write("處理後缺失值情況：", df.isnull().sum())
+
+    # 將日期列轉換為星期幾
+    df['星期'] = df['製造日'].dt.dayofweek
+
+    return df
+
+
+def train_linear_regression_model(df):
+    # 創建特徵字典
+    feature_dict = df[['星期', '工序', '料號', '品名', '班別', '姓名', '機台編號', '工時']].to_dict('records')
+
+    # 使用 DictVectorizer 進行 one-hot 編碼
+    dv = DictVectorizer(sparse=False)
+    X = dv.fit_transform(feature_dict)
+    y = df['產出'].values
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    st.write("模型均方誤差：", mse)
+
+    return model, dv
+
+def predict():
+    st.title("生產工序與操作人員產出預測")
+
+    # 初始化 session state
+    if 'predictions' not in st.session_state:
+        st.session_state.predictions = []
+    if 'model_trained' not in st.session_state:
+        st.session_state.model_trained = False
+
+    uploaded_file = st.file_uploader("上傳包含生產數據的Excel文件", type="xlsx")
+
+    if uploaded_file is not None:
+        if not st.session_state.model_trained:
+            df = load_excel_data(uploaded_file)
+            df = preprocess_data(df)
+            model, dv = train_linear_regression_model(df)
+            st.session_state.df = df
+            st.session_state.model = model
+            st.session_state.dv = dv
+            st.session_state.model_trained = True
+            st.write("預測模型已訓練完成")
+
+        df = st.session_state.df
+        model = st.session_state.model
+        dv = st.session_state.dv
+
+        # 用戶輸入預測
+        st.subheader("預測操作人員產出")
+
+        # 級聯篩選
+        input_料號 = st.selectbox("選擇料號", sorted(df['料號'].unique()))
+
+        品名_options = df[df['料號'] == input_料號]['品名'].unique()
+        input_品名 = st.selectbox("選擇品名", sorted(品名_options))
+
+        工序_options = df[(df['料號'] == input_料號) & (df['品名'] == input_品名)]['工序'].unique()
+        input_工序 = st.selectbox("選擇工序編號", sorted(工序_options))
+
+        機台編號_options = df[(df['料號'] == input_料號) &
+                              (df['品名'] == input_品名) &
+                              (df['工序'] == input_工序)]['機台編號'].unique()
+        input_機台編號 = st.selectbox("選擇機台編號", sorted(機台編號_options))
+
+        班別_options = df[(df['料號'] == input_料號) &
+                          (df['品名'] == input_品名) &
+                          (df['工序'] == input_工序) &
+                          (df['機台編號'] == input_機台編號)]['班別'].unique()
+        input_班別 = st.selectbox("選擇班別", sorted(班別_options))
+
+        姓名_options = df[(df['料號'] == input_料號) &
+                          (df['品名'] == input_品名) &
+                          (df['工序'] == input_工序) &
+                          (df['機台編號'] == input_機台編號) &
+                          (df['班別'] == input_班別)]['姓名'].unique()
+        input_姓名 = st.selectbox("選擇操作人員", sorted(姓名_options))
+
+        input_工時 = st.number_input("輸入工時", min_value=0.0, max_value=24.0, step=0.5)
+        input_星期 = st.number_input("輸入星期幾 (0-6，0表示星期一)", min_value=0, max_value=6)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("預測"):
+                input_dict = {
+                    '星期': input_星期,
+                    '工序': input_工序,
+                    '料號': input_料號,
+                    '品名': input_品名,
+                    '班別': input_班別,
+                    '姓名': input_姓名,
+                    '機台編號': input_機台編號,
+                    '工時': input_工時
+                }
+
+                # 使用 DictVectorizer 轉換輸入數據
+                X_input = dv.transform([input_dict])
+
+                prediction = model.predict(X_input)
+
+                # 將預測結果添加到 session state
+                st.session_state.predictions.append({
+                    '料號': input_料號,
+                    '品名': input_品名,
+                    '工序': input_工序,
+                    '班別': input_班別,
+                    '姓名': input_姓名,
+                    '機台編號': input_機台編號,
+                    '工時': input_工時,
+                    '星期': input_星期,
+                    '預測產出量': prediction[0]
+                })
+
+        with col2:
+            if st.button("清除預測記錄"):
+                st.session_state.predictions = []
+                st.success("預測記錄已清除")
+
+        # 顯示預測歷史
+        if st.session_state.predictions:
+            st.subheader("預測歷史")
+            for i, pred in enumerate(st.session_state.predictions, 1):
+                st.write(f"預測 {i}:")
+                for key, value in pred.items():
+                    if key == '預測產出量':
+                        st.write(f"{key}: {value:.2f}")
+                    else:
+                        st.write(f"{key}: {value}")
+                st.write("---")
+        else:
+            st.info("暫無預測記錄")
+    else:
+        st.write("請上傳數據文件以開始預測。")
+
 
 
 if __name__ == '__main__':
