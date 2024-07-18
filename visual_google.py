@@ -6,6 +6,10 @@ from google.oauth2 import service_account
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.express as px
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.feature_extraction import DictVectorizer
 
 # 設置服務賬號信息
 secret_dict = dict(st.secrets["secret_key"])
